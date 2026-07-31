@@ -16,7 +16,7 @@ const PR_COLORS_HEX = {P1:'#B3261E', P2:'#E4572E', P3:'#E2A63C', P4:'#8FB93E', P
 
 // ---------------- estado compartilhado entre as 5 abas ----------------
 let state = {
-  tab: 'agua',                 // 'agua' | 'esgoto' | 'agua_rural' | 'esgoto_rural' | 'aglomerados'
+  tab: 'esgoto',               // 'agua' | 'esgoto' | 'agua_rural' | 'esgoto_rural' | 'aglomerados'
   groupBy: 'polo', regiao: 'todas', selectedMun: null,   // filtros compartilhados
   compIndicadorAgua: 'rural', compIndicadorEsgoto: 'rural',
   mapIndicadorRuralAgua: 'aglom', mapIndicadorRuralEsgoto: 'aglom',
@@ -466,6 +466,7 @@ const AGUA_COMP_CATS = [
   {key:'v00118', label:'Outra forma', good:false},
 ];
 function renderTabAgua(){
+  if(!document.getElementById('kpiRow-agua')) return;
   const feats = currentSelectionFeatures();
   const domRural = sumDomTotal(feats,'rural'), domUrb = sumDomTotal(feats,'urbana');
   const rural = classifyAgua(sumAgua(feats,'rural'), domRural);
@@ -497,13 +498,16 @@ function renderTabAgua(){
 
   document.getElementById('scopeInfo-agua').innerHTML = `<p><b>${currentSelectionLabel()}</b><br><br>"Rural" combina Aglomerados (Setores 5,6,7) e Rural Disperso (Setor 8). Para o detalhamento separado, use a aba "Consulta Rural".</p>`;
 }
-document.getElementById('segCompIndicador-agua').addEventListener('click', e=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  document.querySelectorAll('#segCompIndicador-agua button').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  state.compIndicadorAgua = btn.dataset.ind;
-  renderTabAgua();
-});
+const segCompIndicadorAgua = document.getElementById('segCompIndicador-agua');
+if(segCompIndicadorAgua){
+  segCompIndicadorAgua.addEventListener('click', e=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    document.querySelectorAll('#segCompIndicador-agua button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.compIndicadorAgua = btn.dataset.ind;
+    renderTabAgua();
+  });
+}
 
 // ================= ABA ESGOTO =================
 const ESG_COMP_CATS = [
@@ -919,4 +923,4 @@ renderControls();
 updateMuniSelectionUI();
 populateMuniList();
 buildMapSkeleton();
-switchTab('agua');
+switchTab('esgoto');

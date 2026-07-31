@@ -47,57 +47,7 @@
     <div class="panel-body" id="muniDetailBody"></div>
   </div>
 
-  <!-- ===================== ABA: AGUA ===================== -->
-  <div class="view" id="view-agua">
-    <div class="kpis" id="kpiRow-agua"></div>
-    <div class="spacer-md"></div>
-    <div class="grid2">
-      <div class="panel">
-        <div class="panel-header">Mapa municipal — % atendimento adequado (Rural = Aglomerados + Rural Disperso)</div>
-        <div id="mapWrap-agua" class="panel-body map-slot"><div class="map-hint" role="tooltip" aria-hidden="true"></div></div>
-        <div class="legend legend-slot"></div>
-        <div class="legend-note">Verde = 100% da população rural utilizando Rede geral, Poço profundo/artesiano ou Poço raso/cacimba. Vermelho = 100% em fonte, carro-pipa, chuva, rios ou outra forma.</div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">Atendimento adequado / inadequado</div>
-        <div class="panel-body">
-          <div class="donuts-row">
-            <div class="donut-box"><h4>Urbano</h4><svg id="donutUrbano-agua" viewBox="0 0 180 180" width="170" height="170"></svg><div class="donut-legend" id="legendUrbano-agua"></div></div>
-            <div class="donut-box"><h4>Rural</h4><svg id="donutRural-agua" viewBox="0 0 180 180" width="170" height="170"></svg><div class="donut-legend" id="legendRural-agua"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="grid3">
-      <div class="panel">
-        <div class="panel-header">
-          <span>Composição do acesso — <span id="compTitle-agua"></span></span>
-        </div>
-        <div class="panel-body">
-          <div class="seg seg-comp" id="segCompIndicador-agua">
-            <button data-ind="urbana">Urbano</button>
-            <button data-ind="rural" class="active">Rural</button>
-          </div>
-          <div id="compChart-agua"></div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">Cobertura de Rede</div>
-        <div class="panel-body text-center">
-          <svg id="donutRede-agua" viewBox="0 0 180 180" width="170" height="170"></svg>
-          <div class="donut-legend legend-rede" id="legendRede-agua"></div>
-          <p class="text-note" style="text-align:left;margin-top:10px;">
-            V00463 = possui ligação à rede geral mas utiliza principalmente outra forma.<br>
-            V00464 = não possui ligação à rede geral de distribuição.
-          </p>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">Nível selecionado</div>
-        <div class="panel-body scope-info" id="scopeInfo-agua"></div>
-      </div>
-    </div>
-  </div>
+
 
   <!-- ===================== ABA: ESGOTO ===================== -->
   <div class="view" id="view-esgoto">
