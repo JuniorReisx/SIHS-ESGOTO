@@ -1,4 +1,4 @@
-PAINEL INTEGRADO DE SANEAMENTO RURAL — BAHIA
+PAINEL ESGOTO — BAHIA (SIDRA / Censo 2022)
 ==============================================
 
 O QUE VOCÊ PRECISA PARA ABRIR O PAINEL
@@ -17,44 +17,51 @@ ESTRUTURA DO PROJETO
 --------------------
   painel_SIHS.html   — estrutura HTML do painel
   css/painel.css     — estilos visuais
-  js/painel.js       — lógica do painel (mapas, filtros, abas)
-  js/geo-data.js     — dados geográficos dos municípios
-  js/pts-data.js     — dados dos 3.171 aglomerados
-  data/*.json        — mesmos dados em formato JSON (referência)
+  js/painel.js       — lógica do painel (mapa, filtros, indicadores)
+  js/geo-data.js     — GeoJSON dos 417 municípios + indicadores SIDRA
+  data/geo-data.json — mesmos dados em JSON (referência)
+  SHP/               — shapefile de origem (Indicadores_Sidra_BA)
+  scripts/convert-shp.js — regenera js/geo-data.js a partir do SHP
 
-O arquivo é grande (~2,7 MB) porque carrega o mapa e os dados de
-todos os 417 municípios e 3.171 aglomerados de uma vez. Pode levar
-alguns segundos para abrir, principalmente em computadores mais
-lentos ou no navegador do celular — isso é normal.
+O arquivo é grande porque carrega o mapa e os dados de todos os
+417 municípios de uma vez. Pode levar alguns segundos para abrir.
+
+PASTA "SHP/"
+------------
+Shapefile atual consumido pelo painel:
+  Indicadores_Sidra_BA.shp (+ .dbf, .shx, .prj, .cpg, …)
+
+Contém limites municipais da Bahia e indicadores SIDRA/IBGE
+(Censo 2022) de esgotamento sanitário e abastecimento de água,
+agregados por município e Território de Identidade.
+
+Para regenerar os dados do painel após trocar o shapefile:
+
+  npm install
+  npm run convert-shp
 
 PASTA "shapefile_municipios/"
 --------------------------------
-Aqui está o shapefile original dos limites municipais
-(MUNICIPIOS_MEIOSOCIO_SANERURAL_2025.shp + arquivos complementares)
-que foi usado como base geográfica do painel. Incluído para
-referência/rastreabilidade — o painel NÃO precisa desses arquivos
-para funcionar, eles só servem caso alguém queira abrir os limites
-municipais originais num programa de GIS (QGIS, ArcGIS) ou conferir
-a fonte dos dados geográficos.
+Shapefile anterior (MUNICIPIOS_MEIOSOCIO_SANERURAL_2025), mantido
+apenas como referência histórica. O painel NÃO usa mais essa pasta.
 
 COMO ENVIAR PARA OUTRAS PESSOAS
 --------------------------------
-Compacte a pasta SIHS inteira em .zip e envie. A pessoa deve
-descompactar e abrir painel_SIHS.html mantendo as pastas css/, js/
-e data/ no mesmo lugar.
+Compacte a pasta SIHS-ESGOTO (sem node_modules/) em .zip e envie.
+A pessoa deve descompactar e abrir painel_SIHS.html.
 
 O QUE TEM DENTRO DO PAINEL
 ----------------------------
-5 abas, com filtro e consulta de município compartilhados entre todas:
-  1. Água          — visão geral do abastecimento de água
-  2. Esgoto        — visão geral do esgotamento sanitário
-  3. Consulta Rural (Água)   — Aglomerados x Rural Disperso
-  4. Consulta Rural (Esgoto) — Aglomerados x Rural Disperso
-  5. Aglomerados   — mapa de pontos por prioridade (P1-P5)
+Visão de Esgoto com:
+  - Filtro por Território de Identidade (27) ou Semiárido (SIM/NÃO)
+  - Consulta por município
+  - Mapa colorido pelo % de atendimento adequado
+  - Donut adequado / inadequado / sem banheiro
+  - Composição SIDRA (rede, fossa séptica, fossa rudimentar, vala, etc.)
 
-Dados: Censo IBGE 2022, base "Revisado.xlsx" (setores censitários),
-shapefile municipal MUNICIPIOS_MEIOSOCIO_SANERURAL_2025 (incluído
-nesta pasta), e a classificação de aglomerados do Consórcio SaneRural.
+Adequado = rede geral/pluvial ou fossa ligada à rede + fossa
+séptica/filtro não ligada à rede (SIDRA tabela 6805).
 
-Versão gerada em: verifique a data no próprio painel (canto superior
-direito do cabeçalho).
+Fonte: IBGE Censo Demográfico 2022 / SIDRA — Indicadores_Sidra_BA.
+
+Versão gerada em: verifique a data no próprio painel (rodapé).

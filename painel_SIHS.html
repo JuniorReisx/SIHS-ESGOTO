@@ -12,15 +12,18 @@
 <div class="panel-shell">
 
   <main>
+    <p class="var-banner" role="note">
+      <span class="var-banner-label">Variável</span>
+      Domicílios particulares permanentes ocupados <span class="var-banner-unit">(Unidades)</span>
+    </p>
     <div class="panel">
       <div class="controls">
         <div class="seg" id="segGroupBy">
-          <button data-g="polo" class="active">Polo Regional</button>
-          <button data-g="microrregiao">Microrregião</button>
-          <button data-g="central">Central</button>
+          <button data-g="territorio" class="active">Território de Identidade</button>
+          <button data-g="semiarido">Semiárido</button>
         </div>
-        <div class="chips" id="chipsPolo"></div>
-        <select class="regiao-select" id="selectMicro" style="display:none;"></select>
+        <div class="chips" id="chipsPolo" style="display:none;"></div>
+        <select class="regiao-select" id="selectMicro"></select>
         <div class="search-box">
           <input type="text" id="muniSearch" list="muniList" placeholder="Consultar município...">
           <datalist id="muniList"></datalist>
@@ -51,37 +54,32 @@
       <div class="bento-agua">
 
         <div class="panel bento-item area-map">
-          <div class="panel-header">Mapa municipal — % atendimento adequado (Rural = Aglomerados + Rural Disperso)</div>
+          <div class="panel-header">Mapa municipal — % atendimento adequado (SIDRA / Censo 2022)</div>
           <div id="mapWrap-esgoto" class="panel-body map-slot"><div class="map-hint" role="tooltip" aria-hidden="true"></div></div>
           <div class="legend legend-slot"></div>
-          <div class="legend-note">Verde = 100% da população rural em Solução Coletiva, Coletiva Adequada ou Individual Adequada. Vermelho = 100% em Solução Individual Inadequada ou Sem Atendimento.</div>
+          <div class="legend-note">Verde = 100% dos domicílios com esgotamento adequado (rede ou fossa séptica). Vermelho = 100% inadequado ou sem banheiro/sanitário.</div>
         </div>
 
         <div class="panel bento-item area-donuts">
           <div class="panel-header">Atendimento adequado / inadequado</div>
           <div class="panel-body">
             <div class="donuts-row">
-              <div class="donut-box"><h4>Urbano</h4><svg id="donutUrbano-esgoto" viewBox="0 0 180 180" width="170" height="170"></svg><div class="donut-legend" id="legendUrbano-esgoto"></div></div>
-              <div class="donut-box"><h4>Rural</h4><svg id="donutRural-esgoto" viewBox="0 0 180 180" width="170" height="170"></svg><div class="donut-legend" id="legendRural-esgoto"></div></div>
+              <div class="donut-box"><h4>Esgotamento</h4><svg id="donutAdeq-esgoto" viewBox="0 0 180 180" width="170" height="170"></svg><div class="donut-legend" id="legendAdeq-esgoto"></div></div>
             </div>
           </div>
         </div>
 
         <div class="panel bento-item area-comp">
           <div class="panel-header">
-            <span>Composição do acesso — <span id="compTitle-esgoto"></span></span>
+            <span>Composição do esgotamento sanitário</span>
           </div>
           <div class="panel-body">
-            <div class="seg seg-comp" id="segCompIndicador-esgoto">
-              <button data-ind="urbana">Urbano</button>
-              <button data-ind="rural" class="active">Rural</button>
-            </div>
             <div id="compChart-esgoto"></div>
           </div>
         </div>
 
         <div class="panel bento-item area-rede">
-          <div class="panel-header">Domicílios com e sem banheiro</div>
+          <div class="panel-header">Domicílios com e sem banheiro/sanitário</div>
           <div class="panel-body text-center" id="banheiroChart-esgoto"></div>
         </div>
 
@@ -104,7 +102,6 @@
 </div>
 
 <script src="js/geo-data.js"></script>
-<script src="js/pts-data.js"></script>
 <script src="js/painel.js"></script>
 </body>
 </html>

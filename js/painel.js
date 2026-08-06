@@ -1,87 +1,94 @@
 const GEO = window.GEO_DATA;
-const PONTOS = window.PTS_DATA;
 document.getElementById('genDate').textContent = new Date().toLocaleDateString('pt-BR');
 
-const MUN_LOOKUP = new Map();
-GEO.features.forEach(f=> MUN_LOOKUP.set(f.properties.cod_mun, f.properties));
-PONTOS.forEach(p=>{
-  const mp = MUN_LOOKUP.get(p.m);
-  p.nm_polo = mp ? mp.nm_polo : null;
-  p.nm_msb = mp ? mp.nm_msb : null;
-});
-
-// ---------------- estado compartilhado (painel fixo em Esgoto) ----------------
+// ---------------- estado ----------------
 let state = {
   tab: 'esgoto',
-  groupBy: 'polo', regiao: 'todas', selectedMun: null,
-  compIndicadorEsgoto: 'rural',
+  groupBy: 'territorio',
+  regiao: 'todas',
+  selectedMun: null,
 };
 
 function fmt(n){ return Math.round(n||0).toLocaleString('pt-BR'); }
 function fmt1(n){ return (n||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}); }
 
+/* Escala do mapa: déficit de adequação (0% = tudo adequado → 100% = nada adequado).
+   Paleta de saneamento alinhada ao tema (teal → âmbar → vinho). */
 function colorForPct(p){
-  const stops = [ {v:0,c:[46,125,70]}, {v:25,c:[143,185,62]}, {v:50,c:[226,166,60]}, {v:75,c:[228,87,46]}, {v:100,c:[179,38,30]} ];
+  const stops = [
+    {v:0,  c:[14,124,140]},   // teal — 100% adequado
+    {v:25, c:[58,168,181]},   // ciano-água
+    {v:50, c:[212,169,23]},   // âmbar — metade
+    {v:75, c:[212,101,47]},   // terracotta
+    {v:100,c:[168,50,69]},    // vinho — 0% adequado
+  ];
   let lo=stops[0], hi=stops[stops.length-1];
   for(let i=0;i<stops.length-1;i++){ if(p>=stops[i].v && p<=stops[i+1].v){ lo=stops[i]; hi=stops[i+1]; break; } }
   const t = (hi.v===lo.v) ? 0 : (p-lo.v)/(hi.v-lo.v);
   const c = lo.c.map((x,i)=>Math.round(x + (hi.c[i]-x)*t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
+
+/* Cores fixas por categoria SIDRA — mesma família do mapa/donut */
+const ESG_CAT_COLORS = {
+  esg_rede:      '#0e7c8c', // rede / fossa ligada — adequado forte
+  esg_fossa_sep: '#3aa8b5', // fossa séptica — adequado suave
+  esg_fossa_rud: '#d4a017', // fossa rudimentar
+  esg_vala:      '#d4891a', // vala
+  esg_rio:       '#c45d2f', // rio/lago/mar
+  esg_outra:     '#b86a5a', // outra forma
+  esg_sem:       '#a83245', // sem banheiro
+};
 function categoryColors(cats){
-  const goodIdx=[], badIdx=[];
-  cats.forEach((c,i)=> (c.good?goodIdx:badIdx).push(i));
-  const colors = new Array(cats.length);
-  goodIdx.forEach((idx,k)=>{ const t = goodIdx.length>1? k/(goodIdx.length-1):0; colors[idx]=colorForPct(t*15); });
-  badIdx.forEach((idx,k)=>{ const t = badIdx.length>1? k/(badIdx.length-1):0; colors[idx]=colorForPct(55+t*45); });
-  return colors;
+  return cats.map(c => ESG_CAT_COLORS[c.key] || '#6b7c8a');
 }
 
-// ---------------- agregação de campos por situação (Esgoto) ----------------
-const ESG_FIELDS  = ['v00494','v00495','v00580','v00581','v00582','v00583','v00584','v00585','v00586','v00587'];
+// ---------------- agregação SIDRA 6805 ----------------
+const ESG_KEYS = ['esg_rede','esg_fossa_sep','esg_fossa_rud','esg_vala','esg_rio','esg_outra','esg_sem'];
 
-function sumSit(feats, prefix, fields, sit){
-  const parts = sit==='rural' ? ['aglom','disperso'] : [sit];
-  const out = {};
-  fields.forEach(v=>{ out[v] = feats.reduce((s,f)=> s + parts.reduce((ss,p)=> ss+(f.properties[prefix+'_'+p+'_'+v]||0), 0), 0); });
+function sumEsg(feats){
+  const out = { esg_total:0 };
+  ESG_KEYS.forEach(k=> out[k]=0);
+  feats.forEach(f=>{
+    const p = f.properties;
+    out.esg_total += p.esg_total||0;
+    ESG_KEYS.forEach(k=> out[k] += p[k]||0);
+  });
   return out;
 }
-const sumEsg  = (feats, sit) => sumSit(feats, 'esg', ESG_FIELDS, sit);
 
-// total real de domicílios (V00001) — fonte de verdade para os denominadores de percentual
-function domTotalSingle(p, sit){
-  const parts = sit==='rural' ? ['aglom','disperso'] : [sit];
-  return parts.reduce((s,part)=> s + (p['dom_'+part+'_v00001']||0), 0);
-}
-function sumDomTotal(feats, sit){
-  return feats.reduce((s,f)=> s + domTotalSingle(f.properties, sit), 0);
-}
-
-function classifyEsg(v, domTotal){
-  const adequado = v.v00580+v.v00581+v.v00582;
-  const inadequado = v.v00583+v.v00584+v.v00585+v.v00586;
-  const sem = v.v00587;
-  const total = domTotal||0;
-  const categorizado = adequado+inadequado+sem;
-  // protecao: se a soma das categorias (fonte primaria) for maior que o total oficial de domicilios (V00001),
-  // ha inconsistencia na base de origem para este recorte — sinalizamos e limitamos a exibicao a 100%
-  const inconsistente = total>0 && categorizado>total*1.005;
-  return {adequado, inadequado, sem, total, inconsistente,
-    pctAdeq: total? Math.min(100, adequado/total*100):0,
-    pctInadeq: total? Math.min(100, inadequado/total*100):0,
-    pctSem: total? Math.min(100, sem/total*100):0};
+function classifyEsg(v){
+  const adequado = (v.esg_rede||0) + (v.esg_fossa_sep||0);
+  const inadequado = (v.esg_fossa_rud||0) + (v.esg_vala||0) + (v.esg_rio||0) + (v.esg_outra||0);
+  const sem = v.esg_sem||0;
+  const total = v.esg_total||0;
+  return {
+    adequado, inadequado, sem, total,
+    pctAdeq: total? adequado/total*100:0,
+    pctInadeq: total? inadequado/total*100:0,
+    pctSem: total? sem/total*100:0,
+  };
 }
 
-// métrica de cor do mapa (fixa em Esgoto / Rural)
 function mapMetricPct(p){
-  const feats = [{properties:p}];
-  return classifyEsg(sumEsg(feats,'rural'), domTotalSingle(p,'rural'));
+  return classifyEsg({
+    esg_total: p.esg_total,
+    esg_rede: p.esg_rede,
+    esg_fossa_sep: p.esg_fossa_sep,
+    esg_fossa_rud: p.esg_fossa_rud,
+    esg_vala: p.esg_vala,
+    esg_rio: p.esg_rio,
+    esg_outra: p.esg_outra,
+    esg_sem: p.esg_sem,
+  });
 }
 
-const POLOS = [...new Set(GEO.features.map(f=>f.properties.nm_polo))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-const MICROS = [...new Set(GEO.features.map(f=>f.properties.nm_msb))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-const CENTRAIS_ORDEM = ["Caetité","Feira de Santana","Jacobina","Ribeira do Pombal","Seabra","Vitória da Conquista","Sem Central definida"];
-function regiaoKey(){ return state.groupBy==='polo' ? 'nm_polo' : state.groupBy==='central' ? 'central' : 'nm_msb'; }
+const TERRITORIOS = [...new Set(GEO.features.map(f=>f.properties.territorio).filter(Boolean))]
+  .sort((a,b)=>a.localeCompare(b,'pt-BR'));
+
+function regiaoKey(){
+  return state.groupBy === 'semiarido' ? 'semiarido' : 'territorio';
+}
 
 function currentSelectionFeatures(){
   if(state.selectedMun) return GEO.features.filter(f=>f.properties.cod_mun===state.selectedMun);
@@ -94,36 +101,38 @@ function currentSelectionLabel(){
     return 'Município — ' + (f?f.properties.nm_mun:state.selectedMun);
   }
   if(state.regiao!=='todas'){
-    const lbl = state.groupBy==='polo'?'Polo Regional — ':state.groupBy==='central'?'Central — ':'Microrregião — ';
-    return lbl + state.regiao;
+    if(state.groupBy==='semiarido'){
+      return (state.regiao==='SIM' ? 'Semiárido — SIM' : 'Semiárido — NÃO');
+    }
+    return 'Território de Identidade — ' + state.regiao;
   }
   return 'Estado da Bahia — 417 municípios';
 }
 
-// ---------------- controles compartilhados ----------------
+// ---------------- controles ----------------
 function renderControls(){
   document.querySelectorAll('#segGroupBy button').forEach(b=>b.classList.toggle('active', b.dataset.g===state.groupBy));
-  const usaChips = (state.groupBy==='polo' || state.groupBy==='central');
+  const usaSelect = state.groupBy==='territorio';
+  const usaChips = state.groupBy==='semiarido';
   document.getElementById('chipsPolo').style.display = usaChips ? 'flex' : 'none';
-  document.getElementById('selectMicro').style.display = state.groupBy==='microrregiao' ? '' : 'none';
+  document.getElementById('selectMicro').style.display = usaSelect ? '' : 'none';
+
   const chipsWrap = document.getElementById('chipsPolo');
   chipsWrap.innerHTML = '';
-  const allBtn = document.createElement('button');
-  allBtn.className = 'chip' + (state.regiao==='todas' ? ' active':'');
-  allBtn.textContent = 'Todo o Estado';
-  allBtn.onclick = ()=> applyRegiaoFilter('todas');
-  chipsWrap.appendChild(allBtn);
-  const lista = state.groupBy==='central' ? CENTRAIS_ORDEM : POLOS;
-  lista.forEach(nome=>{
-    const b = document.createElement('button');
-    b.className = 'chip' + (state.regiao===nome ? ' active':'');
-    b.textContent = nome;
-    b.onclick = ()=> applyRegiaoFilter(nome);
-    chipsWrap.appendChild(b);
-  });
+  if(usaChips){
+    [['todas','Todo o Estado'],['SIM','Semiárido (SIM)'],['NÃO','Fora do Semiárido (NÃO)']].forEach(([val,lbl])=>{
+      const b = document.createElement('button');
+      b.className = 'chip' + (state.regiao===val ? ' active':'');
+      b.textContent = lbl;
+      b.onclick = ()=> applyRegiaoFilter(val);
+      chipsWrap.appendChild(b);
+    });
+  }
+
   const sel = document.getElementById('selectMicro');
-  sel.innerHTML = '<option value="todas">Todo o Estado</option>' + MICROS.map(m=>`<option value="${m}">${m}</option>`).join('');
-  sel.value = state.groupBy==='microrregiao' ? state.regiao : 'todas';
+  sel.innerHTML = '<option value="todas">Todo o Estado</option>' +
+    TERRITORIOS.map(m=>`<option value="${m}">${m}</option>`).join('');
+  sel.value = usaSelect ? state.regiao : 'todas';
 }
 document.getElementById('segGroupBy').addEventListener('click', e=>{
   const btn = e.target.closest('button'); if(!btn) return;
@@ -168,7 +177,7 @@ function geomToPath(geom){
   let d=''; polys.forEach(poly=>{ poly.forEach(ring=>{ d+=ringToPath(ring)+' '; }); }); return d.trim();
 }
 
-// ---------------- mapa único (view Esgoto) ----------------
+// ---------------- mapa ----------------
 let mapSvgEl = null;
 let currentZoomScale = 1;
 let touchHintTimer = null;
@@ -335,7 +344,7 @@ function renderMap(){
   if(legendSlot) legendSlot.innerHTML = legendHtml;
 }
 
-// ---------------- donut genérico ----------------
+// ---------------- donut ----------------
 function renderDonut(svgId, legendId, parts){
   const svg = document.getElementById(svgId);
   if(!svg) return;
@@ -362,74 +371,71 @@ function renderDonut(svgId, legendId, parts){
 
 // ================= VIEW ESGOTO =================
 const ESG_COMP_CATS = [
-  {key:'v00580', label:'SC — Solução Coletiva', good:true},
-  {key:'v00581', label:'SCA — Coletiva Adequada', good:true},
-  {key:'v00582', label:'SIA — Individual Adequada', good:true},
-  {key:'v00583_586', label:'SII — Individual Inadequada', good:false},
-  {key:'v00587', label:'SA — Sem Atendimento', good:false},
+  {key:'esg_rede', label:'Rede geral / pluvial ou fossa ligada à rede', good:true},
+  {key:'esg_fossa_sep', label:'Fossa séptica/filtro não ligada à rede', good:true},
+  {key:'esg_fossa_rud', label:'Fossa rudimentar ou buraco', good:false},
+  {key:'esg_vala', label:'Vala', good:false},
+  {key:'esg_rio', label:'Rio, lago, córrego ou mar', good:false},
+  {key:'esg_outra', label:'Outra forma', good:false},
+  {key:'esg_sem', label:'Sem banheiro nem sanitário', good:false},
 ];
+
 function renderTabEsgoto(){
   const feats = currentSelectionFeatures();
-  const domRural = sumDomTotal(feats,'rural'), domUrb = sumDomTotal(feats,'urbana');
-  const rural = classifyEsg(sumEsg(feats,'rural'), domRural);
-  const urbana = classifyEsg(sumEsg(feats,'urbana'), domUrb);
-  const banh = sumEsg(feats,'rural');
-  const pctBanhCom = domRural? banh.v00494/domRural*100:0;
-  const pctBanhSem = domRural? banh.v00495/domRural*100:0;
+  const v = sumEsg(feats);
+  const cl = classifyEsg(v);
+  const pop = feats.reduce((s,f)=>s+(f.properties.populacao||0),0);
+  const popUrb = feats.reduce((s,f)=>s+(f.properties.pop_urbana||0),0);
+  const popRur = feats.reduce((s,f)=>s+(f.properties.pop_rural||0),0);
+  const comBanh = Math.max(0, (v.esg_total||0) - (v.esg_sem||0));
+  const pctCom = v.esg_total ? comBanh/v.esg_total*100 : 0;
+  const pctSem = v.esg_total ? (v.esg_sem||0)/v.esg_total*100 : 0;
+
   document.getElementById('kpiRow-esgoto').innerHTML = `
     <div class="kpi"><div class="val">${fmt(feats.length)}</div><div class="lbl">Municípios na seleção</div></div>
-    <div class="kpi bom"><div class="val">${fmt(banh.v00494)}</div><div class="sub">${fmt1(pctBanhCom)}%</div><div class="lbl">Domicílios c/ banheiro — Rural</div></div>
-    <div class="kpi alerta"><div class="val">${fmt(banh.v00495)}</div><div class="sub">${fmt1(pctBanhSem)}%</div><div class="lbl">Domicílios s/ banheiro — Rural</div></div>
-    <div class="kpi ${urbana.pctAdeq>=70?'bom':''}"><div class="val">${fmt1(urbana.pctAdeq)}%${urbana.inconsistente?' ⚠️':''}</div><div class="lbl">Adequado — Urbano</div></div>
-    <div class="kpi ${rural.pctAdeq<40?'alerta':'bom'}"><div class="val">${fmt1(rural.pctAdeq)}%</div><div class="lbl">Adequado — Rural</div></div>
+    <div class="kpi"><div class="val">${fmt(pop)}</div><div class="lbl">População (Censo 2022)</div></div>
+    <div class="kpi bom"><div class="val">${fmt(comBanh)}</div><div class="sub">${fmt1(pctCom)}%</div><div class="lbl">Domicílios c/ banheiro ou sanitário</div></div>
+    <div class="kpi alerta"><div class="val">${fmt(v.esg_sem)}</div><div class="sub">${fmt1(pctSem)}%</div><div class="lbl">Sem banheiro nem sanitário</div></div>
+    <div class="kpi ${cl.pctAdeq>=70?'bom':cl.pctAdeq<40?'alerta':''}"><div class="val">${fmt1(cl.pctAdeq)}%</div><div class="lbl">Atendimento adequado</div></div>
   `;
-  const existingAviso = document.getElementById('avisoUrbanoEsgoto');
-  if(existingAviso) existingAviso.remove();
-  if(urbana.inconsistente){
-    document.getElementById('kpiRow-esgoto').insertAdjacentHTML('afterend',
-      `<div id="avisoUrbanoEsgoto" class="alert-banner">
-        ⚠️ <b>Inconsistência nos dados de origem (Esgoto — Urbano):</b> a soma das categorias de atendimento (V00580 a V00587) ultrapassa o total de domicílios (V00001) para a seleção atual — ex.: setor 290010805000001 (Abaíra) tem V00580 = 418 para apenas 295 domicílios. O percentual acima foi limitado a 100% para não exibir valor incorreto, mas o número real não pôde ser calculado com confiança. Isso não afeta os dados de Rural/Aglomerados/Rural Disperso, que estão consistentes.
-      </div>`);
-  }
-  renderDonut('donutUrbano-esgoto','legendUrbano-esgoto', [['Adequado',urbana.adequado,'var(--adeq)'],['Inadequado',urbana.inadequado,'var(--inadeq)'],['Sem atend.',urbana.sem,'var(--sem)']]);
-  renderDonut('donutRural-esgoto','legendRural-esgoto', [['Adequado',rural.adequado,'var(--adeq)'],['Inadequado',rural.inadequado,'var(--inadeq)'],['Sem atend.',rural.sem,'var(--sem)']]);
 
-  document.getElementById('compTitle-esgoto').textContent = state.compIndicadorEsgoto==='urbana' ? 'Urbano' : 'Rural (Aglomerados + Disperso)';
-  const v = sumEsg(feats, state.compIndicadorEsgoto);
-  const domTot = sumDomTotal(feats, state.compIndicadorEsgoto);
-  const values = [v.v00580, v.v00581, v.v00582, v.v00583+v.v00584+v.v00585+v.v00586, v.v00587];
+  renderDonut('donutAdeq-esgoto','legendAdeq-esgoto', [
+    ['Adequado', cl.adequado, 'var(--adeq)'],
+    ['Inadequado', cl.inadequado, 'var(--inadeq)'],
+    ['Sem banheiro', cl.sem, 'var(--sem)'],
+  ]);
+
   const colors = categoryColors(ESG_COMP_CATS);
-  document.getElementById('compChart-esgoto').innerHTML = domTot>0 ? ESG_COMP_CATS.map((c,i)=>{
-    const val = values[i], pct = domTot? val/domTot*100:0;
+  document.getElementById('compChart-esgoto').innerHTML = cl.total>0 ? ESG_COMP_CATS.map((c,i)=>{
+    const val = v[c.key]||0, pct = cl.total? val/cl.total*100:0;
     return `<div class="chart-row"><div class="name" title="${c.label}">${c.label}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
       <div class="pct">${fmt(val)} (${fmt1(pct)}%)</div></div>`;
   }).join('') : '<div class="empty-msg">Sem dado para esta seleção.</div>';
 
-  const rows = [['Rural', sumEsg(feats,'rural'), domRural], ['Urbano', sumEsg(feats,'urbana'), domUrb]];
-  document.getElementById('banheiroChart-esgoto').innerHTML = rows.map(([label,vv,domT])=>{
-    const pctCom = domT? vv.v00494/domT*100:0, pctSem = domT? vv.v00495/domT*100:0;
-    return `<div class="banheiro-row">
-      <div class="banheiro-label">${label}</div>
+  document.getElementById('banheiroChart-esgoto').innerHTML = `
+    <div class="banheiro-row">
+      <div class="banheiro-label">Domicílios</div>
       <div class="bar2"><div class="seg-com lab" style="width:${pctCom}%">${pctCom>12?fmt1(pctCom)+'%':''}</div><div class="seg-sem lab" style="width:${pctSem}%">${pctSem>8?fmt1(pctSem)+'%':''}</div></div>
     </div>
     <div class="banheiro-stats">
-      <span><span style="color:var(--adeq);font-weight:700;">●</span> ${fmt(vv.v00494)} com banheiro (${fmt1(pctCom)}%)</span>
-      <span><span style="color:var(--sem);font-weight:700;">●</span> ${fmt(vv.v00495)} sem banheiro (${fmt1(pctSem)}%)</span>
+      <span><span style="color:var(--adeq);font-weight:700;">●</span> ${fmt(comBanh)} com banheiro/sanitário (${fmt1(pctCom)}%)</span>
+      <span><span style="color:var(--sem);font-weight:700;">●</span> ${fmt(v.esg_sem)} sem banheiro/sanitário (${fmt1(pctSem)}%)</span>
+    </div>
+    <div class="banheiro-stats" style="margin-top:10px;">
+      <span>Pop. urbana: <b>${fmt(popUrb)}</b></span>
+      <span>Pop. rural: <b>${fmt(popRur)}</b></span>
     </div>`;
-  }).join('');
 
-  document.getElementById('scopeInfo-esgoto').innerHTML = `<p><b>${currentSelectionLabel()}</b><br><br>"Rural" combina Aglomerados (Setores 5,6,7) e Rural Disperso (Setor 8).</p>`;
+  document.getElementById('scopeInfo-esgoto').innerHTML = `<p><b>${currentSelectionLabel()}</b><br><br>
+    Dados SIDRA/IBGE (Censo 2022) — domicílios particulares permanentes ocupados por tipo de esgotamento sanitário.
+    <br><br>
+    <b>Adequado</b> = rede geral/pluvial ou fossa ligada à rede + fossa séptica/filtro não ligada à rede.
+    <br><b>Inadequado</b> = fossa rudimentar, vala, rio/lago/mar ou outra forma.
+  </p>`;
 }
-document.getElementById('segCompIndicador-esgoto').addEventListener('click', e=>{
-  const btn = e.target.closest('button'); if(!btn) return;
-  document.querySelectorAll('#segCompIndicador-esgoto button').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  state.compIndicadorEsgoto = btn.dataset.ind;
-  renderTabEsgoto();
-});
 
-// ================= município: detalhe compartilhado =================
+// ================= município: detalhe =================
 function renderMuniDetail(){
   const panel = document.getElementById('muniDetailPanel');
   if(!state.selectedMun){ panel.style.display='none'; return; }
@@ -438,27 +444,26 @@ function renderMuniDetail(){
   const p = f.properties;
   panel.style.display='';
 
-  document.getElementById('muniDetailName').textContent = `${p.nm_mun} — Polo: ${p.nm_polo} · ${p.nm_msb}`;
-  const esgRural = classifyEsg(sumEsg([f],'rural'), domTotalSingle(p,'rural'));
-  const aglCount = PONTOS.filter(p=>p.m===state.selectedMun).length;
+  document.getElementById('muniDetailName').textContent =
+    `${p.nm_mun} — ${p.territorio}` + (p.semiarido==='SIM' ? ' · Semiárido' : '');
+
+  const esg = classifyEsg(p);
   document.getElementById('muniDetailBody').innerHTML = `
     <div class="detail-grid">
-      <div class="detail-item"><div class="v">${fmt1(esgRural.pctAdeq)}%</div><div class="l">Esgoto adequado — Rural</div></div>
-      <div class="detail-item"><div class="v">${fmt(aglCount)}</div><div class="l">Aglomerados rurais</div></div>
-      <div class="detail-item"><div class="v">${p.nm_polo}</div><div class="l">Polo Regional</div></div>
-      <div class="detail-item"><div class="v">${p.nm_msb}</div><div class="l">Microrregião</div></div>
+      <div class="detail-item"><div class="v">${fmt1(esg.pctAdeq)}%</div><div class="l">Esgoto adequado</div></div>
+      <div class="detail-item"><div class="v">${fmt(p.populacao)}</div><div class="l">População</div></div>
+      <div class="detail-item"><div class="v">${p.territorio}</div><div class="l">Território de Identidade</div></div>
+      <div class="detail-item"><div class="v">${fmt(p.esg_total)}</div><div class="l">Domicílios (esgoto)</div></div>
     </div>
   `;
 }
 
-// ================= renderização geral =================
 function renderCurrentTab(){
   renderMap();
   renderTabEsgoto();
   renderMuniDetail();
 }
 
-// ================= ações de filtro / seleção (compartilhadas) =================
 function updateMuniSelectionUI(){
   const btn = document.getElementById('muniClear');
   const hasSelection = !!state.selectedMun;
@@ -497,7 +502,6 @@ function applyRegiaoFilter(nome){
   renderCurrentTab();
 }
 
-// ================= inicialização =================
 renderControls();
 updateMuniSelectionUI();
 populateMuniList();
