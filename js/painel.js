@@ -13,14 +13,14 @@ function fmt(n){ return Math.round(n||0).toLocaleString('pt-BR'); }
 function fmt1(n){ return (n||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}); }
 
 /* Escala do mapa: déficit de adequação (0% = tudo adequado → 100% = nada adequado).
-   Paleta de saneamento alinhada ao tema (teal → âmbar → vinho). */
+   Paleta marrom do esgotamento (escuro = adequado → claro = sem banheiro). */
 function colorForPct(p){
   const stops = [
-    {v:0,  c:[14,124,140]},   // teal — 100% adequado
-    {v:25, c:[58,168,181]},   // ciano-água
-    {v:50, c:[212,169,23]},   // âmbar — metade
-    {v:75, c:[212,101,47]},   // terracotta
-    {v:100,c:[168,50,69]},    // vinho — 0% adequado
+    {v:0,  c:[26,15,8]},      // #1A0F08 — 100% adequado
+    {v:25, c:[92,58,30]},     // #5C3A1E
+    {v:50, c:[139,90,43]},    // #8B5A2B
+    {v:75, c:[201,154,74]},   // #C99A4A
+    {v:100,c:[245,235,221]},  // #F5EBDD — 0% adequado
   ];
   let lo=stops[0], hi=stops[stops.length-1];
   for(let i=0;i<stops.length-1;i++){ if(p>=stops[i].v && p<=stops[i+1].v){ lo=stops[i]; hi=stops[i+1]; break; } }
@@ -29,15 +29,15 @@ function colorForPct(p){
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-/* Cores fixas por categoria SIDRA — mesma família do mapa/donut */
+/* Cores fixas por categoria SIDRA — paleta marrom do esgotamento */
 const ESG_CAT_COLORS = {
-  esg_rede:      '#0e7c8c', // rede / fossa ligada — adequado forte
-  esg_fossa_sep: '#3aa8b5', // fossa séptica — adequado suave
-  esg_fossa_rud: '#d4a017', // fossa rudimentar
-  esg_vala:      '#d4891a', // vala
-  esg_rio:       '#c45d2f', // rio/lago/mar
-  esg_outra:     '#b86a5a', // outra forma
-  esg_sem:       '#a83245', // sem banheiro
+  esg_rede:      '#1A0F08', // Rede geral / pluvial ou fossa ligada
+  esg_fossa_sep: '#5C3A1E', // Fossa séptica / filtro não ligada à rede
+  esg_fossa_rud: '#8B5A2B', // Fossa rudimentar ou buraco
+  esg_vala:      '#B8752F', // Vala
+  esg_rio:       '#C99A4A', // Rio, lago, córrego ou mar
+  esg_outra:     '#D9BC8C', // Outra forma
+  esg_sem:       '#F5EBDD', // Sem banheiro
 };
 function categoryColors(cats){
   return cats.map(c => ESG_CAT_COLORS[c.key] || '#6b7c8a');
@@ -365,7 +365,9 @@ function renderDonut(svgId, legendId, parts){
     <text x="${cx}" y="${cy+13}" text-anchor="middle" font-size="9" fill="#5A6673" font-family="Arial Narrow, Arial, sans-serif">${parts[0][0].toLowerCase()}</text>`;
   document.getElementById(legendId).innerHTML = parts.map(([label,val,color])=>{
     const pct = total? (val/total*100).toFixed(1) : '0.0';
-    return `<div class="donut-legend-row"><span><span class="sw" style="background:${color}"></span>${label}</span><span>${fmt(val)} (${pct}%)</span></div>`;
+    const light = String(color).toUpperCase() === '#F5EBDD';
+    const swStyle = `background:${color}` + (light ? ';box-shadow:inset 0 0 0 1px #D9BC8C' : '');
+    return `<div class="donut-legend-row"><span><span class="sw" style="${swStyle}"></span>${label}</span><span>${fmt(val)} (${pct}%)</span></div>`;
   }).join('');
 }
 
@@ -400,16 +402,18 @@ function renderTabEsgoto(){
   `;
 
   renderDonut('donutAdeq-esgoto','legendAdeq-esgoto', [
-    ['Adequado', cl.adequado, 'var(--adeq)'],
-    ['Inadequado', cl.inadequado, 'var(--inadeq)'],
-    ['Sem banheiro', cl.sem, 'var(--sem)'],
+    ['Adequado', cl.adequado, '#1A0F08'],
+    ['Inadequado', cl.inadequado, '#B8752F'],
+    ['Sem banheiro', cl.sem, '#F5EBDD'],
   ]);
 
   const colors = categoryColors(ESG_COMP_CATS);
   document.getElementById('compChart-esgoto').innerHTML = cl.total>0 ? ESG_COMP_CATS.map((c,i)=>{
     const val = v[c.key]||0, pct = cl.total? val/cl.total*100:0;
+    const light = colors[i].toUpperCase() === '#F5EBDD';
+    const barStyle = `width:${pct}%;background:${colors[i]}` + (light ? ';box-shadow:inset 0 0 0 1px #D9BC8C' : '');
     return `<div class="chart-row"><div class="name" title="${c.label}">${c.label}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="${barStyle}"></div></div>
       <div class="pct">${fmt(val)} (${fmt1(pct)}%)</div></div>`;
   }).join('') : '<div class="empty-msg">Sem dado para esta seleção.</div>';
 
@@ -419,8 +423,8 @@ function renderTabEsgoto(){
       <div class="bar2"><div class="seg-com lab" style="width:${pctCom}%">${pctCom>12?fmt1(pctCom)+'%':''}</div><div class="seg-sem lab" style="width:${pctSem}%">${pctSem>8?fmt1(pctSem)+'%':''}</div></div>
     </div>
     <div class="banheiro-stats">
-      <span><span style="color:var(--adeq);font-weight:700;">●</span> ${fmt(comBanh)} com banheiro/sanitário (${fmt1(pctCom)}%)</span>
-      <span><span style="color:var(--sem);font-weight:700;">●</span> ${fmt(v.esg_sem)} sem banheiro/sanitário (${fmt1(pctSem)}%)</span>
+      <span><span style="color:#1A0F08;font-weight:700;">●</span> ${fmt(comBanh)} com banheiro/sanitário (${fmt1(pctCom)}%)</span>
+      <span><span style="color:#8B5A2B;font-weight:700;">●</span> ${fmt(v.esg_sem)} sem banheiro/sanitário (${fmt1(pctSem)}%)</span>
     </div>
     <div class="banheiro-stats" style="margin-top:10px;">
       <span>Pop. urbana: <b>${fmt(popUrb)}</b></span>

@@ -20,12 +20,12 @@
   --texto-claro: #7c8d98;
   --branco: #ffffff;
 
-  /* Semânticas de esgoto — teal (adequado) → âmbar (inadequado) → vinho (sem) */
-  --adeq: #0e7c8c;
-  --adeq-soft: #3aa8b5;
-  --inadeq: #d4891a;
-  --inadeq-soft: #e0a84a;
-  --sem: #a83245;
+  /* Semânticas de esgoto — paleta marrom */
+  --adeq: #1A0F08;
+  --adeq-soft: #5C3A1E;
+  --inadeq: #B8752F;
+  --inadeq-soft: #C99A4A;
+  --sem: #F5EBDD;
   --aglom: #0f5876;
   --disperso: #6a63d1;
 
@@ -74,7 +74,7 @@ main {
   padding: 10px 14px;
   background: linear-gradient(90deg, var(--accent-muted), #fff);
   border: 1px solid var(--linha);
-  border-left: 4px solid var(--adeq);
+  border-left: 4px solid #8B5A2B;
   border-radius: var(--radius);
   font-family: var(--font-body);
   font-size: 14px;
@@ -390,7 +390,7 @@ select.regiao-select {
   font-family: var(--font-display);
   font-size: 27px;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--adeq-soft);
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
@@ -801,8 +801,8 @@ table.priority-table .pr-swatch {
   background: var(--cinza-claro);
 }
 
-.banheiro-row .seg-com { background: var(--adeq); }
-.banheiro-row .seg-sem { background: var(--sem); }
+.banheiro-row .seg-com { background: #1A0F08; }
+.banheiro-row .seg-sem { background: #F5EBDD; border: 1px solid #D9BC8C; box-sizing: border-box; }
 
 .banheiro-row .lab {
   font-size: 10px;
