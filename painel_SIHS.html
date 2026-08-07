@@ -49,6 +49,12 @@
                   <button type="button" id="muniClear" class="btn-clear-muni" title="Desselecionar município" disabled aria-hidden="true">Limpar seleção</button>
                 </div>
               </div>
+              <div class="filter-block">
+                <button type="button" id="btnAglomerados" class="btn-aglomerados" disabled>
+                  Ver aglomerados
+                </button>
+                <p class="aglomerados-hint" id="aglomeradosHint">Disponível após selecionar um município</p>
+              </div>
             </div>
           </div>
 
@@ -102,7 +108,31 @@
 
 </div>
 
+<div class="popup-panel" id="aglomeradosModal" hidden role="dialog" aria-labelledby="aglomeradosTitle">
+  <div class="popup-header">
+    <h2 id="aglomeradosTitle">Aglomerados do município</h2>
+    <button type="button" class="popup-close" id="aglomeradosClose" aria-label="Fechar">×</button>
+  </div>
+  <div class="popup-body">
+    <div class="table-wrap">
+      <table class="data-table" id="aglomeradosTable">
+        <thead>
+          <tr>
+            <th>Nome do aglomerado</th>
+            <th>Tipo de aglomerado</th>
+            <th>Município</th>
+            <th>População</th>
+          </tr>
+        </thead>
+        <tbody id="aglomeradosTbody"></tbody>
+      </table>
+    </div>
+    <p class="empty-msg" id="aglomeradosEmpty" style="display:none;">Nenhum aglomerado encontrado para este município.</p>
+  </div>
+</div>
+
 <script src="js/geo-data.js"></script>
+<script src="js/pts-data.js"></script>
 <script src="js/painel.js"></script>
 </body>
 </html>

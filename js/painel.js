@@ -535,6 +535,63 @@ function updateMuniSelectionUI(){
   btn.classList.toggle('visible', hasSelection);
   btn.disabled = !hasSelection;
   btn.setAttribute('aria-hidden', hasSelection ? 'false' : 'true');
+
+  const btnAgl = document.getElementById('btnAglomerados');
+  const hintAgl = document.getElementById('aglomeradosHint');
+  if(btnAgl) btnAgl.disabled = !hasSelection;
+  if(hintAgl) hintAgl.hidden = hasSelection;
+  if(!hasSelection) closeAglomeradosModal();
+}
+
+function tipoAglomerado(nome){
+  const s = String(nome||'').toLowerCase();
+  if(/quilombola/.test(s)) return 'Comunidade quilombola';
+  if(/aldeia|indígena|indigena/.test(s)) return 'Aldeia indígena';
+  return 'Aglomerado rural';
+}
+
+function aglomeradosDoMunicipio(codMun){
+  const pts = window.PTS_DATA || [];
+  const cod = String(codMun||'');
+  return pts
+    .filter(p => String(p.m) === cod)
+    .slice()
+    .sort((a,b)=> String(a.n||'').localeCompare(String(b.n||''), 'pt-BR'));
+}
+
+function openAglomeradosModal(){
+  if(!state.selectedMun) return;
+  const f = GEO.features.find(f=>f.properties.cod_mun===state.selectedMun);
+  const nm = f ? f.properties.nm_mun : state.selectedMun;
+  const rows = aglomeradosDoMunicipio(state.selectedMun);
+  const modal = document.getElementById('aglomeradosModal');
+  const title = document.getElementById('aglomeradosTitle');
+  const tbody = document.getElementById('aglomeradosTbody');
+  const empty = document.getElementById('aglomeradosEmpty');
+  const table = document.getElementById('aglomeradosTable');
+
+  const qtd = rows.length;
+  title.textContent = `Aglomerados — ${nm} · ${qtd} ${qtd === 1 ? 'aglomerado' : 'aglomerados'}`;
+  tbody.innerHTML = rows.map(p => `
+    <tr>
+      <td>${p.n || '—'}</td>
+      <td>${tipoAglomerado(p.n)}</td>
+      <td>${p.mn || nm}</td>
+      <td class="num">${fmt(p.h)}</td>
+    </tr>
+  `).join('');
+
+  const has = qtd > 0;
+  table.style.display = has ? '' : 'none';
+  empty.style.display = has ? 'none' : '';
+  empty.textContent = 'Nenhum aglomerado encontrado para este município.';
+  modal.hidden = false;
+}
+
+function closeAglomeradosModal(){
+  const modal = document.getElementById('aglomeradosModal');
+  if(!modal || modal.hidden) return;
+  modal.hidden = true;
 }
 
 function toggleMunicipio(codMun){
@@ -566,6 +623,12 @@ function applyRegiaoFilter(nome){
   zoomToRegiao();
   renderCurrentTab();
 }
+
+document.getElementById('btnAglomerados')?.addEventListener('click', openAglomeradosModal);
+document.getElementById('aglomeradosClose')?.addEventListener('click', closeAglomeradosModal);
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') closeAglomeradosModal();
+});
 
 renderControls();
 updateMuniSelectionUI();
