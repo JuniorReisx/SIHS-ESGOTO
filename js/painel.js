@@ -586,12 +586,22 @@ function openAglomeradosModal(){
   empty.style.display = has ? 'none' : '';
   empty.textContent = 'Nenhum aglomerado encontrado para este município.';
   modal.hidden = false;
+  requestAnimationFrame(()=> modal.classList.add('is-open'));
 }
 
 function closeAglomeradosModal(){
   const modal = document.getElementById('aglomeradosModal');
-  if(!modal || modal.hidden) return;
-  modal.hidden = true;
+  if(!modal || !modal.classList.contains('is-open')) {
+    if(modal) modal.hidden = true;
+    return;
+  }
+  modal.classList.remove('is-open');
+  const done = ()=>{
+    modal.hidden = true;
+    modal.removeEventListener('transitionend', done);
+  };
+  modal.addEventListener('transitionend', done);
+  setTimeout(done, 320);
 }
 
 function toggleMunicipio(codMun){
